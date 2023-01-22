@@ -5,6 +5,7 @@ import locale
 
 class Shopee(commands.Cog):
     def __init__(self, bot: commands.Bot):
+        locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
         self.bot = bot
 
     @commands.command(aliases=['sp'])
@@ -20,10 +21,9 @@ class Shopee(commands.Cog):
         embed = Embed(title=data['product']['name'], url=url, color=0xff4500)
         embed.set_author(name='Product by '+data['shop']['name'], url='https://shopee.co.id/'+data['shop']['username'], icon_url='https://img.icons8.com/fluency/512/shopee.png')
         embed.set_image(url=data['product']['images'][0])
-        embed.add_field(name='Description', value=data['product']['description'][0:256]+'...', inline=False)
-        embed.add_field(name='Price', value=self.get_product_price(data))
-        embed.add_field(name='Sold', value=data['product']['sold'])
-        embed.add_field(name='Stock', value=data['product']['stock'])
+        embed.add_field(name='Harga', value=self.get_product_price(data))
+        embed.add_field(name='Terjual', value=data['product']['sold'])
+        embed.add_field(name='Stok', value=data['product']['stock'])
         embed.add_field(name='Brand', value=data['product']['brand'])
         for attribute in data['product']['attributes']:
             embed.add_field(name=attribute['name'], value=attribute['value'])
@@ -31,7 +31,6 @@ class Shopee(commands.Cog):
         return embed
 
     def get_product_price(self, data):
-        locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
         if data['product']['price_min'] != data['product']['price_max']:
             return f'{locale.currency(data["product"]["prince_min"], grouping=True)} - {locale.currency(data["product"]["price_max"], grouping=True)}'
         else:
