@@ -5,7 +5,6 @@ import locale
 
 class Tokopedia(commands.Cog):
     def __init__(self, bot: commands.Bot):
-        locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
         self.bot = bot
 
     @commands.command(aliases=['tp'])
@@ -16,8 +15,8 @@ class Tokopedia(commands.Cog):
             await ctx.channel.send(embed=embed)
 
     def generate_embed(self, product: Product, url: str):
+        locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
         data = product.serialize
-        print(data)
 
         embed = Embed(title=data['product']['name'], url=url, color=0x059200)
         embed.set_author(name='Product by '+data['shop']['name'], url='https://www.tokopedia.com/'+product.shop_domain, icon_url='https://seeklogo.com/images/T/tokopedia-logo-5340B636F6-seeklogo.com.png')

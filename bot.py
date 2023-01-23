@@ -28,6 +28,12 @@ class SCP079(commands.Bot):
         
         await self.process_commands(message)
 
+    async def on_command_completion(self, ctx: commands.Context):
+        await ctx.invoke(self.get_command('send_log_to_channel'))
+
+    async def on_command_error(self, ctx: commands.Context, exception: commands.errors.CommandError):
+        await ctx.invoke(self.get_command('send_log_to_channel'), exception)
+
 def start_bot():
     load_dotenv()
 
