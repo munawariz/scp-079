@@ -3,3 +3,4 @@ python-dotenv==0.21.1
 cogwatch==3.2.0
 shopee-wrapper
 tokopedia-wrapper
+asyncpraw==7.6.1
