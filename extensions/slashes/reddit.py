@@ -2,7 +2,7 @@ from asyncpraw import Reddit as RedditClient
 from asyncpraw.models import Subreddit, Submission
 from asyncprawcore.exceptions import NotFound, Redirect, ServerError
 from datetime import datetime
-from discord import app_commands, ButtonStyle, Embed, Emoji, Interaction, DiscordException
+from discord import app_commands, ButtonStyle, Embed, Interaction, DiscordException
 from discord.ext import commands
 from discord.ui import button, Button, View
 from enum import Enum
@@ -50,16 +50,60 @@ class Reddit(commands.Cog):
 
     class RedditView(View):
         def __init__(self, submissions: List[Submission], orig_interaction: Interaction):
+            super().__init__(timeout=180)
+
             self.current_index = 0
             self.submissions = submissions
             self.orig_interaction = orig_interaction
-            super().__init__(timeout=60)
+            self.toggle_send_button()
+
+        async def on_timeout(self) -> None:
+            for child in self.children:
+                if isinstance(child, Button):
+                    child.disabled = True
+
+            await self.orig_interaction.edit_original_response(view=self)
+            return await super().on_timeout()
+
+        @property
+        def submission(self) -> Submission:
+            return self.submissions[self.current_index]
+
+        @property
+        def send_button(self) -> Button:
+            return [child for child in self.children if isinstance(child, Button) and child.custom_id == 'reddit:send'][0]
+
+        @property
+        def submission_has_image(self) -> bool:
+            return self.submission.thumbnail and is_valid_image(self.submission.url)
+
+        # Currently violating DRY concept, refactor ASAP
+        @property
+        def embed(self) -> Embed:
+            date = datetime.utcfromtimestamp(self.submission.created_utc).strftime('%Y-%m-%d')
+            embed = Embed(title=self.submission.title[:255], url=self.submission.url, color=0xff4500)
+            embed.set_author(name=f'Posted by /u/{self.submission.author} on {date}',icon_url="https://cdn2.iconfinder.com/data/icons/metro-ui-icon-set/512/Reddit.png", url=f'https://www.reddit.com/user/{self.submission.author}')
+
+            if self.submission.link_flair_text: embed.add_field(name='🏷️ Flair', value=self.submission.link_flair_text, inline=True)
+            if self.submission.over_18: embed.add_field(name='🏷️ Marked', value="NSFW", inline=True)
+            if self.submission.thumbnail and is_valid_image(self.submission.url): embed.set_image(url=self.submission.url)
+            if self.submission.is_video: embed.add_field(name='Video URL', value=self.submission.url, inline=False)
+            if self.submission.selftext: embed.description = f'{self.submission.selftext[:1024]}\n'
+
+            embed.set_footer(text=f'👍{self.submission.ups} ─── {self.current_index+1} of {len(self.submissions)} posts')
+
+            return embed
+
+        def toggle_send_button(self):
+            if self.submission_has_image: self.send_button.disabled=False
+            else: self.send_button.disabled=True
 
         @button(label='Prev', style=ButtonStyle.grey, custom_id='reddit:prev')
         async def prev(self, interaction: Interaction, button: Button):
             await interaction.response.defer()
             self.current_index -= 1
-            await self.orig_interaction.edit_original_response(embed=self.generate_embed(self.submissions[self.current_index]))
+            self.toggle_send_button()
+            await self.orig_interaction.edit_original_response(embed=self.embed, view=self)
 
         @button(label='Delete', style=ButtonStyle.red, custom_id='reddit:delete')
         async def delete(self, interaction: Interaction, button: Button):
@@ -69,23 +113,13 @@ class Reddit(commands.Cog):
         async def next(self, interaction: Interaction, button: Button):
             await interaction.response.defer()
             self.current_index += 1
-            await self.orig_interaction.edit_original_response(embed=self.generate_embed(self.submissions[self.current_index]))
+            self.toggle_send_button()
+            await self.orig_interaction.edit_original_response(embed=self.embed, view=self)
 
-        # Currently violating DRY concept, refactor ASAP
-        def generate_embed(self, post: Submission) -> Embed:
-            date = datetime.utcfromtimestamp(post.created_utc).strftime('%Y-%m-%d')
-            embed = Embed(title=post.title[:255], url=post.url, color=0xff4500)
-            embed.set_author(name=f'Posted by /u/{post.author} on {date}',icon_url="https://cdn2.iconfinder.com/data/icons/metro-ui-icon-set/512/Reddit.png", url=f'https://www.reddit.com/user/{post.author}')
-
-            if post.link_flair_text: embed.add_field(name='🏷️ Flair', value=post.link_flair_text, inline=True)
-            if post.over_18: embed.add_field(name='🏷️ Marked', value="NSFW", inline=True)
-            if post.thumbnail and is_valid_image(post.url):embed.set_image(url=post.url)
-            if post.is_video: embed.add_field(name='Video URL', value=post.url, inline=False)
-            if post.selftext: embed.description = f'{post.selftext[:1024]}\n'
-
-            embed.set_footer(text=f'👍{post.ups} ─── {self.current_index+1} of {len(self.submissions)} posts')
-
-            return embed
+        @button(label='Send To Me', style=ButtonStyle.blurple, custom_id='reddit:send')
+        async def send(self, interaction: Interaction, button: Button):
+            await interaction.response.defer()
+            await interaction.user.send(self.submission.url)
 
     @app_commands.command(description='Fetch submission(s) from a subreddit', nsfw=True)
     @app_commands.describe(subreddit='Subreddit name')
@@ -102,19 +136,16 @@ class Reddit(commands.Cog):
         sort: Sort=Sort.Random,
         syntax: Syntax=Syntax.Lucene,
         time_filter: TimeFilter=TimeFilter.All):
-        
         await interaction.response.defer()
-        
+
         client = await self.get_client()
         self.subreddit = await client.subreddit(subreddit, fetch=True)
         self.submissions = await self.get_submission(subreddit=self.subreddit, search=search, limit=limit, sort=sort.value, syntax=syntax.value, time_filter=time_filter.value)
-        self.total_submissions = len(self.submissions)
-        self.current_submission_index = 0
-
-        embed = self.generate_embed(self.submissions[0])
-
+        self.current_index = 0
+        self.submission = self.submissions[self.current_index]
         await self.session.close()
-        self.embed = await interaction.followup.send(embed=embed, view=self.RedditView(submissions=self.submissions, orig_interaction=interaction))
+
+        await interaction.followup.send(embed=self.embed, view=self.RedditView(submissions=self.submissions, orig_interaction=interaction))
 
     async def get_submission(self,
         subreddit: Subreddit,
@@ -146,18 +177,22 @@ class Reddit(commands.Cog):
         return result
 
     # Currently violating DRY concept, refactor ASAP
-    def generate_embed(self, post: Submission) -> Embed:
-        date = datetime.utcfromtimestamp(post.created_utc).strftime('%Y-%m-%d')
-        embed = Embed(title=post.title[:255], url=post.url, color=0xff4500)
-        embed.set_author(name=f'Posted by /u/{post.author} on {date}',icon_url="https://cdn2.iconfinder.com/data/icons/metro-ui-icon-set/512/Reddit.png", url=f'https://www.reddit.com/user/{post.author}')
+    @property
+    def embed(self) -> Embed:
+        date = datetime.utcfromtimestamp(self.submission.created_utc).strftime('%Y-%m-%d')
+        embed = Embed(title=self.submission.title[:255], url=self.submission.url, color=0xff4500)
+        embed.set_author(
+            name=f'Posted by /u/{self.submission.author} on {date}',
+            icon_url='https://cdn2.iconfinder.com/data/icons/metro-ui-icon-set/512/Reddit.png',
+            url=f'https://www.reddit.com/user/{self.submission.author}')
 
-        if post.link_flair_text: embed.add_field(name='🏷️ Flair', value=post.link_flair_text, inline=True)
-        if post.over_18: embed.add_field(name='🏷️ Marked', value="NSFW", inline=True)
-        if post.thumbnail and is_valid_image(post.url):embed.set_image(url=post.url)
-        if post.is_video: embed.add_field(name='Video URL', value=post.url, inline=False)
-        if post.selftext: embed.description = f'{post.selftext[:1024]}\n'
+        if self.submission.link_flair_text: embed.add_field(name='🏷️ Flair', value=self.submission.link_flair_text, inline=True)
+        if self.submission.over_18: embed.add_field(name='🏷️ Marked', value="NSFW", inline=True)
+        if self.submission.thumbnail and is_valid_image(self.submission.url):embed.set_image(url=self.submission.url)
+        if self.submission.is_video: embed.add_field(name='Video URL', value=self.submission.url, inline=False)
+        if self.submission.selftext: embed.description = f'{self.submission.selftext[:1024]}\n'
 
-        embed.set_footer(text=f'👍{post.ups} ─── {self.current_submission_index+1} of {self.total_submissions} posts')
+        embed.set_footer(text=f'👍{self.submission.ups} ─── {self.current_index+1} of {len(self.submissions)} posts')
 
         return embed
 

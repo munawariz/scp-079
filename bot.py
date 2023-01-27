@@ -26,7 +26,6 @@ class SCP079(commands.Bot):
                 try: await self.load_extension(f'extensions.slashes.{filename[:-3]}')
                 except Exception as e: print(e)
 
-        print('OKEEEEEEEEEEEEE')
         await self.tree.sync(guild=self.DEBUG_GUILD)
         print('Slash command synced.')
 

@@ -25,8 +25,9 @@ class Shopee(commands.Cog):
         embed.add_field(name='Terjual', value=data['product']['sold'])
         embed.add_field(name='Stok', value=data['product']['stock'])
         embed.add_field(name='Brand', value=data['product']['brand'])
-        for attribute in data['product']['attributes']:
-            embed.add_field(name=attribute['name'], value=attribute['value'])
+        if data['product']['attributes']:
+            for attribute in data['product']['attributes']:
+                embed.add_field(name=attribute['name'], value=attribute['value'])
 
         return embed
 
