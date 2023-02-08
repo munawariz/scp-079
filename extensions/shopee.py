@@ -1,10 +1,11 @@
+from bot import SCP079
 from discord import Embed
 from discord.ext import commands
 from shopee_wrapper.product import Product
 import locale
 
 class Shopee(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: SCP079):
         self.bot = bot
 
     @commands.command(aliases=['sp'])
@@ -37,5 +38,5 @@ class Shopee(commands.Cog):
         else:
             return locale.currency(data['product']['price'], grouping=True)
 
-async def setup(bot: commands.Bot):
+async def setup(bot: SCP079):
     await bot.add_cog(Shopee(bot=bot))

@@ -1,6 +1,7 @@
 from asyncpraw import Reddit as RedditClient
 from asyncpraw.models import Subreddit, Submission
 from asyncprawcore.exceptions import NotFound, Redirect, ServerError
+from bot import SCP079
 from datetime import datetime
 from discord import app_commands, ButtonStyle, Embed, Interaction, DiscordException
 from discord.ext import commands
@@ -12,7 +13,7 @@ import aiohttp
 import os
 
 class Reddit(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: SCP079):
         self.bot = bot
 
     async def get_client(self):
@@ -219,5 +220,5 @@ class Reddit(commands.Cog):
         await interaction.followup.send(embed=embed, ephemeral=True)
         await self.bot.on_app_command_error(interaction, error)
 
-async def setup(bot: commands.Bot):
+async def setup(bot: SCP079):
     await bot.add_cog(Reddit(bot=bot))

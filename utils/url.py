@@ -2,7 +2,7 @@ import urllib.parse
 import urllib.error
 import urllib.request
 
-def is_valid_image(url):
+def is_valid_image(url: str):
     valid_exts = ['jpg', 'jpeg', 'png', 'webm', 'gif']
     parsed = urllib.parse.urlparse(url)
     ext = parsed.path.split('.')[-1]

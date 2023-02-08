@@ -1,10 +1,11 @@
+from bot import SCP079
 from discord import Embed
 from discord.ext import commands
 from tokopedia_wrapper.product import Product
 import locale
 
 class Tokopedia(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: SCP079):
         self.bot = bot
 
     @commands.command(aliases=['tp'])
@@ -29,5 +30,5 @@ class Tokopedia(commands.Cog):
         return embed
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: SCP079):
     await bot.add_cog(Tokopedia(bot=bot))

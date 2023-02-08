@@ -13,8 +13,18 @@ class SCP079(commands.Bot):
         super().__init__(command_prefix=prefix, intents=intents)
 
     @property
-    def DEBUG_GUILD(self):
-        return self.get_guild(int(os.environ.get('DEBUG_GUILD'))) if os.environ.get('STAGE').lower() == 'debug' else None
+    def DEBUG_GUILDS(self):
+        guilds = []
+        for guild_id in os.environ.get('DEBUG_GUILDS').split(','):
+            guilds.append(self.get_guild(int(guild_id)))
+        return guilds
+    
+    @property
+    def LOG_CHANNELS(self): 
+        channels = []
+        for channel_id in os.environ.get('LOG_CHANNELS').split(','):
+            channels.append(self.get_channel(int(channel_id)))
+        return channels
 
     async def setup_hook(self):
         """
@@ -26,7 +36,11 @@ class SCP079(commands.Bot):
                 try: await self.load_extension(f'extensions.slashes.{filename[:-3]}')
                 except Exception as e: print(e)
 
-        await self.tree.sync(guild=self.DEBUG_GUILD)
+        if os.environ.get('STAGE').lower() == 'debug':
+            for guild in self.DEBUG_GUILDS:
+                await self.tree.sync(guild=guild)
+        else:
+            await self.tree.sync()
         print('Slash command synced.')
 
     @watch(path='extensions', preload=True)
@@ -38,7 +52,7 @@ class SCP079(commands.Bot):
             return
         
         """
-        Custom logic handler when you want to process commandless trigger,
+        Custom logic handler when you want to process prefixless trigger,
         change the message content to desired command. The rest will be executed like the usual flow
         """
         shopee_match = re.search("(https:\/\/|http:\/\/|\/\/)?shopee\.co\.id\/[a-zA-Z0-9-_]+-i\.[0-9]+\.[0-9]+(\?[a-zA-Z0-9-_]+(=[a-zA-Z0-9-_]+)?(&[a-zA-Z0-9-_]+(=[a-zA-Z0-9-_]+)?)*)?", message.content)
