@@ -2,7 +2,7 @@ from bot import SCP079
 from discord import Embed
 from discord.ext import commands
 from shopee_wrapper.product import Product
-import locale
+from utils.currency import to_currency_string
 
 class Shopee(commands.Cog):
     def __init__(self, bot: SCP079):
@@ -16,7 +16,6 @@ class Shopee(commands.Cog):
             await ctx.channel.send(embed=embed)
     
     def generate_embed(self, product: Product, url: str):
-        locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
         data = product.serialize
 
         embed = Embed(title=data['product']['name'], url=url, color=0xff4500)
@@ -34,9 +33,9 @@ class Shopee(commands.Cog):
 
     def get_product_price(self, data):
         if data['product']['price_min'] != data['product']['price_max']:
-            return f'{locale.currency(data["product"]["price_min"], grouping=True)} - {locale.currency(data["product"]["price_max"], grouping=True)}'
+            return f'{to_currency_string(data["product"]["price_min"])} - {to_currency_string(data["product"]["price_max"])}'
         else:
-            return locale.currency(data['product']['price'], grouping=True)
+            return to_currency_string(data['product']['price'])
 
 async def setup(bot: SCP079):
     await bot.add_cog(Shopee(bot=bot))

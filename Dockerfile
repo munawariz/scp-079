@@ -2,8 +2,6 @@ FROM python:3
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y locales && locale-gen id_ID.UTF-8
-
 COPY requirements.txt ./
 
 RUN python3 -m pip install --upgrade pip
